@@ -4588,7 +4588,7 @@ quat4.str=function(a){return"["+a[0]+", "+a[1]+", "+a[2]+", "+a[3]+"]"};
 	var anyImageHadError = false;
 	Runtime.prototype.waitForImageLoad = function (img_, src_)
 	{
-		img_["cocoonLazyLoad"] = true;
+		img_["cocoonLazyLoad"] = false;
 		img_.onerror = function (e)
 		{
 			img_.c2error = true;
@@ -4596,7 +4596,7 @@ quat4.str=function(a){return"["+a[0]+", "+a[1]+", "+a[2]+", "+a[3]+"]"};
 			if (console && console.error)
 				console.error("Error loading image '" + img_.src + "': ", e);
 		};
-		if (this.isEjecta)
+		if (this.isEjecta || this.isCocoonJs)
 		{
 			img_.src = src_;
 		}
@@ -19689,6 +19689,209 @@ cr.plugins_.Button = function(runtime)
 	pluginProto.acts = new Acts();
 	function Exps() {};
 	pluginProto.exps = new Exps();
+}());
+/**
+ * Object holder for the plugin
+ */
+cr.plugins_.Cocoon_Canvasplus = function(runtime) {
+    this.runtime = runtime;
+};
+/**
+ * C2 plugin
+ */
+(function() {
+    var dialog = "";
+    var input_text = "";
+    var capture_screen_sync = "";
+    var capture_screen_async = "";
+    var device_info = "";
+    var pluginProto = cr.plugins_.Cocoon_Canvasplus.prototype;
+    pluginProto.Type = function(plugin) {
+        this.plugin = plugin;
+        this.runtime = plugin.runtime;
+    };
+    var typeProto = pluginProto.Type.prototype;
+    typeProto.onCreate = function() {};
+    /**
+     * C2 specific behaviour
+     */
+    pluginProto.Instance = function(type) {
+        this.type = type;
+        this.runtime = type.runtime;
+    };
+    var instanceProto = pluginProto.Instance.prototype;
+    var self;
+    instanceProto.onCreate = function() {
+        if (!(this.runtime.isAndroid || this.runtime.isiOS))
+            return;
+        if (typeof Cocoon == 'undefined')
+            return;
+        self = this;
+    };
+    function Cnds() {};
+    /**
+     * Cocoon Basic conditions
+     */
+    Cnds.prototype.isCanvasPlus = function() {
+        return this.runtime.isCocoonJs;
+    };
+    Cnds.prototype.onKeyboardCancel = function() {
+        return true;
+    };
+    Cnds.prototype.onKeyboardSuccess = function() {
+        return true;
+    };
+    Cnds.prototype.onConfirmCancel = function() {
+        return true;
+    };
+    Cnds.prototype.onCaptureScreenAsyncFail = function() {
+        return true;
+    };
+    Cnds.prototype.onConfirmSuccess = function() {
+        return true;
+    };
+    Cnds.prototype.onCaptureScreenAsyncSuccess = function() {
+        return true;
+    };
+    pluginProto.cnds = new Cnds();
+    /**
+     * Plugin actions
+     */
+    function Acts() {};
+    Acts.prototype.promptKeyboard = function(title_, message_, initial_, type_, canceltext_, oktext_) {
+        if (!this.runtime.isCocoonJs)
+            return;
+        var typestr = ["text", "num", "phone", "email", "url"][type_];
+        Cocoon.Dialog.prompt({
+            title: title_,
+            message: message_,
+            text: initial_,
+            type: typestr,
+            cancelText: canceltext_,
+            confirmText: oktext_
+        }, {
+            success: function(text) {
+                input_text = text;
+                self.runtime.trigger(cr.plugins_.Cocoon_Canvasplus.prototype.cnds.onKeyboardSuccess, self);
+            },
+            cancel: function() {
+                self.runtime.trigger(cr.plugins_.Cocoon_Canvasplus.prototype.cnds.onKeyboardCancel, self);
+            }
+        });
+    };
+    Acts.prototype.confirmDialog = function(title_, message_, canceltext_, oktext_) {
+        if (!this.runtime.isCocoonJs)
+            return;
+        Cocoon.Dialog.confirm({
+            title: title_,
+            message: message_,
+            cancelText: canceltext_,
+            confirmText: oktext_
+        }, function(accepted) {
+            if (accepted) {
+                self.runtime.trigger(cr.plugins_.Cocoon_Canvasplus.prototype.cnds.onConfirmSuccess, self);
+            } else {
+                self.runtime.trigger(cr.plugins_.Cocoon_Canvasplus.prototype.cnds.onConfirmCancel, self);
+            }
+        });
+    };
+    Acts.prototype.openURL = function(url_) {
+        Cocoon.App.openURL(url_);
+    };
+    Acts.prototype.exitApp = function() {
+        Cocoon.App.exit();
+    };
+    Acts.prototype.pauseApp = function() {
+        Cocoon.App.pause();
+    };
+    Acts.prototype.resumeApp = function() {
+        Cocoon.App.resume();
+    };
+    Acts.prototype.captureScreenSync = function(filename_, storage_, capture_) {
+        if (!this.runtime.isCocoonJs)
+            return;
+        var storage_type = ["APP_STORAGE", "INTERNAL_STORAGE", "EXTERNAL_STORAGE", "TEMPORARY_STORAGE"][storage_];
+        var gallery = false;
+        capture_screen_sync = Cocoon.Utils.captureScreen(filename_, storage_type, capture_, gallery);
+    };
+    Acts.prototype.captureScreenAsync = function(filename_, storage_, capture_) {
+        if (!this.runtime.isCocoonJs)
+            return;
+        var storage_type = ["APP_STORAGE", "INTERNAL_STORAGE", "EXTERNAL_STORAGE", "TEMPORARY_STORAGE"][storage_];
+        var gallery = false;
+        Cocoon.Utils.captureScreenAsync(filename_, storage_type, capture_, gallery, function(url, error) {
+            if (error) {
+                self.runtime.trigger(cr.plugins_.Cocoon_Canvasplus.prototype.cnds.onCaptureScreenAsyncFail, self);
+            } else {
+                capture_screen_async = url;
+                self.runtime.trigger(cr.plugins_.Cocoon_Canvasplus.prototype.cnds.onCaptureScreenAsyncSuccess, self);
+            }
+        });
+    };
+    Acts.prototype.captureScreenSyncShare = function(filename_, storage_, capture_, text_) {
+        if (!this.runtime.isCocoonJs)
+            return;
+        var storage_type = ["APP_STORAGE", "INTERNAL_STORAGE", "EXTERNAL_STORAGE", "TEMPORARY_STORAGE"][storage_];
+        var gallery = false;
+        url = Cocoon.Utils.captureScreen(filename_, storage_type, capture_, gallery);
+        Cocoon.Share.share({
+            message: text_,
+            image: url
+        }, function(activity, completed, error) {
+            if (completed) {
+                self.runtime.trigger(cr.plugins_.Cocoon_Canvasplus.prototype.cnds.onShareSyncComplete, self);
+            } else {
+                self.runtime.trigger(cr.plugins_.Cocoon_Canvasplus.prototype.cnds.onShareSyncFail, self);
+                console.log(error);
+            }
+        });
+    };
+    Acts.prototype.showWebdialog = function(url_){
+        dialog = new Cocoon.Widget.WebDialog();
+        dialog.show(url_, function(){
+            console.log("The user has closed the dialog!");
+            self.runtime.trigger(cr.plugins_.Cocoon_Canvasplus.prototype.cnds.onWebdialogUserClose, self);
+        });
+    };
+    Acts.prototype.closeWebdialog = function(){
+        dialog.close();
+    };
+    Acts.prototype.getDeviceInfo = function(){
+        device_info = Cocoon.Device.getDeviceInfo();
+    };
+    pluginProto.acts = new Acts();
+    /**
+     * Expressions
+     */
+    function Exps() {};
+    Exps.prototype.InputText = function(ret) {
+        ret.set_string(input_text);
+    };
+    Exps.prototype.CaptureScreenSync = function(ret) {
+        ret.set_string(capture_screen_sync);
+    };
+    Exps.prototype.CaptureScreenAsync = function(ret) {
+        ret.set_string(capture_screen_async);
+    };
+    Exps.prototype.DeviceOS = function(ret) {
+        ret.set_string(device_info.os);
+    };
+    Exps.prototype.DeviceVersion = function(ret) {
+        ret.set_string(device_info.version);
+    };
+    Exps.prototype.DeviceDPI = function(ret) {
+        ret.set_string(device_info.dpi);
+    };
+    Exps.prototype.DeviceBrand = function(ret) {
+        ret.set_string(device_info.brand);
+    };
+    Exps.prototype.DeviceModel = function(ret) {
+        ret.set_string(device_info.model);
+    };
+    Exps.prototype.DevicePlatformId = function(ret) {
+        ret.set_string(device_info.platformId);
+    };
+    pluginProto.exps = new Exps();
 }());
 ;
 ;
@@ -45366,41 +45569,42 @@ cr.behaviors.scrollto = function(runtime)
 	behaviorProto.acts = new Acts();
 }());
 cr.getObjectRefTable = function () { return [
-	cr.plugins_.AJAX,
-	cr.plugins_.Audio,
-	cr.plugins_.Browser,
-	cr.plugins_.Button,
-	cr.plugins_.Function,
 	cr.plugins_.Dictionary,
+	cr.plugins_.Function,
 	cr.plugins_.Rex_audio_helper,
-	cr.plugins_.Rex_BackendlessAPI,
 	cr.plugins_.Rex_Achievements,
+	cr.plugins_.Rex_BackendlessAPI,
 	cr.plugins_.Rex_Backendless_saveslot,
-	cr.plugins_.Rex_Date,
-	cr.plugins_.Rex_CSV,
 	cr.plugins_.Rex_Comment,
 	cr.plugins_.Rex_Container,
-	cr.plugins_.Rex_Graph,
-	cr.plugins_.Rex_FSM,
+	cr.plugins_.Rex_CSV,
+	cr.plugins_.Rex_Date,
 	cr.plugins_.Rex_fnCallPkg,
-	cr.plugins_.Rex_GoogleWebFontLoader,
-	cr.plugins_.Rex_Layouter,
+	cr.plugins_.Rex_FSM,
 	cr.plugins_.Rex_gInstGroup,
-	cr.plugins_.Rex_GridCtrl,
+	cr.plugins_.Rex_Layouter,
+	cr.plugins_.Rex_Graph,
+	cr.plugins_.Rex_GoogleWebFontLoader,
 	cr.plugins_.Rex_GraphMovement,
-	cr.plugins_.Rex_MomenJS,
+	cr.plugins_.Rex_GridCtrl,
 	cr.plugins_.Rex_Nickname,
-	cr.plugins_.Rex_Scenario,
-	cr.plugins_.Rex_TimeLine,
-	cr.plugins_.rex_TagText,
-	cr.plugins_.Rex_SysExt,
+	cr.plugins_.Rex_MomenJS,
 	cr.plugins_.Rex_taffydb,
+	cr.plugins_.Rex_TimeLine,
+	cr.plugins_.Rex_Scenario,
+	cr.plugins_.Rex_SysExt,
+	cr.plugins_.rex_TagText,
 	cr.plugins_.rex_TouchWrap,
+	cr.plugins_.Rex_WebstorageExt,
 	cr.plugins_.Rex_WaitEvent,
 	cr.plugins_.Sprite,
-	cr.plugins_.Rex_WebstorageExt,
 	cr.plugins_.Text,
 	cr.plugins_.WebStorage,
+	cr.plugins_.AJAX,
+	cr.plugins_.Browser,
+	cr.plugins_.Audio,
+	cr.plugins_.Button,
+	cr.plugins_.Cocoon_Canvasplus,
 	cr.behaviors.Rex_pin2imgpt,
 	cr.behaviors.rex_lunarray_Tween_mod,
 	cr.behaviors.scrollto,
