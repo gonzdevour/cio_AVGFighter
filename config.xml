@@ -1,9 +1,9 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
-<widget xmlns="http://www.w3.org/ns/widgets" xmlns:gap="http://phonegap.com/ns/1.0" id="com.playone.avg" version="1.0.0">
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:gap="http://phonegap.com/ns/1.0" id="com.playone.authtest" version="1.0.0.">
 
-	<name>Template_AVGFighter</name>
-	<description>Template_PrincessMaker</description>
-	<author href="http://www.facebook.com/playoneapps" email="playoneapps@gmail.com">playone</author>
+	<name>AuthTest</name>
+	<description>AuthTest</description>
+	<author>PlayOne</author>
 
 	<icon src="icon-128.png" width="128" height="128" />
 	<icon src="icon-256.png" width="256" height="256" gap:role="default" />
@@ -14,7 +14,7 @@
 	<feature name="http://api.phonegap.com/1.0/network"/>
 	<plugin name="cordova-plugin-media" source="npm" />
 
-	<preference name="orientation" value="landscape" />
+	<preference name="orientation" value="portrait" />
 	<preference name="fullscreen" value="true" />
 	<gap:config-file platform="ios" parent="UIStatusBarHidden"><true/></gap:config-file>
 	<gap:config-file platform="ios" parent="UIViewControllerBasedStatusBarAppearance"><false/></gap:config-file>
@@ -29,6 +29,10 @@
 	<access origin="*" />
 
 	<plugin name="cordova-plugin-inappbrowser" source="npm" />
+	<gap:plugin name="cordova-plugin-facebook4" source="npm" spec="1.7.3">
+        <param name="APP_ID" value="1678767109016625" />
+        <param name="APP_NAME" value="Test" />
+    </gap:plugin>
 
 	<!-- Optional splash screen image, e.g.: -->
 	<!-- <gap:splash src="splash.png" width="1024" height="768" /> -->
